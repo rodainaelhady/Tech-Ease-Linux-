@@ -1,0 +1,88 @@
+import customtkinter as ctk
+import subprocess
+from PIL import Image
+from customtkinter import CTkImage
+from tkinter import messagebox
+
+class SpeedTest(ctk.CTkFrame):
+    def __init__(self, parent, show_frame):
+        super().__init__(parent)
+        speed_image = ctk.CTkImage(Image.open("images/speed2.png"), size=(70, 70))
+        
+        arrow_image = ctk.CTkImage(Image.open("images/home.png"), size=(24, 24))
+        back_button = ctk.CTkButton(self, text="Home", image=arrow_image, font=("Comic Sans MS", 20), height=35,
+                                     compound="left", command=lambda: show_frame(None))
+        back_button.pack(side="top", anchor="nw", padx=10, pady=10)
+
+        label = ctk.CTkLabel(self, text="Speed Test", font=("Comic Sans MS", 60), image=speed_image, compound="right")
+        label.pack(pady=(10, 20))
+
+        squares_frame = ctk.CTkFrame(self, fg_color="#2B2B2B")
+        squares_frame.pack(pady=20)
+
+        self.download_square = self.add_result_square(squares_frame, "Download", "images/download.png", size=(60, 60), row=0, column=0)
+        self.upload_square = self.add_result_square(squares_frame, "Upload", "images/upload.png", size=(60, 60), row=0, column=1)
+        self.ping_square = self.add_result_square(squares_frame, "Ping", "images/ping.png", size=(60, 60), row=0, column=2)
+
+        test_image = ctk.CTkImage(Image.open("images/test.png"), size=(30, 30))
+        start_button = ctk.CTkButton(self, text="Test", font=("Comic Sans MS", 30), image=test_image, compound="right", command=self.start_speed_test)
+        start_button.pack(pady=20)
+
+    def start_speed_test(self):
+        try:
+            download, upload, ping = self.test_internet_speed()
+
+            self.update_result_square(self.download_square, f"Speed: {download} Mbps")
+            self.update_result_square(self.upload_square, f"Speed: {upload} Mbps")
+            self.update_result_square(self.ping_square, f"Ping: {ping} ms")
+        except Exception as e:
+            messagebox.showerror("Error", f"An error occurred: {e}")
+
+    def test_internet_speed(self):
+        result = subprocess.run(['speedtest-cli', '--simple'], capture_output=True, text=True)
+        output = result.stdout
+
+        download = upload = ping = "N/A"
+        for line in output.splitlines():
+            if "Download" in line:
+                download = line.split()[1]
+            elif "Upload" in line:
+                upload = line.split()[1]
+            elif "Ping" in line:
+                ping = line.split()[1]
+
+        return download, upload, ping
+
+    def add_result_square(self, parent, text, image_path, size=(100, 100), row=0, column=0):
+        square_frame = ctk.CTkFrame(parent, corner_radius=10, fg_color="#2B2B2B", width=500, height=300)
+        square_frame.grid(row=row, column=column, padx=50, pady=10)
+
+        image = Image.open(image_path)
+        image = image.resize(size, Image.LANCZOS)
+        photo = CTkImage(light_image=image, dark_image=image, size=size)
+
+        image_label = ctk.CTkLabel(square_frame, image=photo, text="")
+        image_label.pack(pady=(10, 5))
+
+        label = ctk.CTkLabel(square_frame, text=text, font=("Comic Sans MS", 20), text_color="white")
+        label.pack(pady=(5, 10))
+
+        return square_frame
+
+    def update_result_square(self, square_frame, text):
+        for widget in square_frame.winfo_children():
+            if isinstance(widget, ctk.CTkLabel) and widget.cget("text") != "":
+                widget.configure(text=text)
+
+def main():
+    app = ctk.CTk()
+    app.title("Internet Speed Test Tool")
+    app.geometry("800x600")
+
+    speed_test_frame = SpeedTest(app, show_frame=lambda x: None)
+    speed_test_frame.pack(expand=True, fill="both")
+
+    app.mainloop()
+
+if __name__ == "__main__":
+    main()
